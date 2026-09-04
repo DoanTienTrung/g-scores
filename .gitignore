@@ -10,3 +10,4 @@ coverage/
 !*.csv.gz
 
 plan.md
+notes/
