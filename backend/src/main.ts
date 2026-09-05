@@ -9,6 +9,6 @@ async function bootstrap() {
   app.enableCors({ origin: config.get<string>('CORS_ORIGIN') ?? '*' });
   app.setGlobalPrefix('api');
 
-  await app.listen(config.get<string>('PORT') ?? 3000);
+  await app.listen(config.get<string>('PORT') ?? 3000, '0.0.0.0');
 }
 bootstrap();
