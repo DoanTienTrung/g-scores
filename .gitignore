@@ -1,5 +1,6 @@
 node_modules/
 dist/
+*.tsbuildinfo
 build/
 coverage/
 .env
@@ -11,3 +12,12 @@ coverage/
 
 plan.md
 notes/
+
+# Prisma CLI tu cai skill cho AI agent moi lan chay lenh - khong dua len repo
+.claude/
+.windsurf/
+.agents/
+skills-lock.json
+
+# Prisma Client duoc sinh ra, khong commit
+src/generated/

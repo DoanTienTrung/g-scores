@@ -1,0 +1,34 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model ExamResult {
+  sbd        String   @id @db.VarChar(8)
+  toan       Decimal? @db.Decimal(4, 2)
+  nguVan     Decimal? @map("ngu_van") @db.Decimal(4, 2)
+  ngoaiNgu   Decimal? @map("ngoai_ngu") @db.Decimal(4, 2)
+  vatLi      Decimal? @map("vat_li") @db.Decimal(4, 2)
+  hoaHoc     Decimal? @map("hoa_hoc") @db.Decimal(4, 2)
+  sinhHoc    Decimal? @map("sinh_hoc") @db.Decimal(4, 2)
+  lichSu     Decimal? @map("lich_su") @db.Decimal(4, 2)
+  diaLi      Decimal? @map("dia_li") @db.Decimal(4, 2)
+  gdcd       Decimal? @db.Decimal(4, 2)
+  maNgoaiNgu String?  @map("ma_ngoai_ngu") @db.VarChar(2)
+
+  @@map("exam_results")
+}
+
+model SubjectStatistic {
+  subject String @db.VarChar(20)
+  level   Int    @db.SmallInt
+  total   Int
+
+  @@id([subject, level])
+  @@map("subject_statistics")
+}
