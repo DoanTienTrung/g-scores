@@ -12,9 +12,9 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -24,3 +24,9 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test
+
+      - name: Trigger Render deploy
+        if: github.ref == 'refs/heads/main'
+        run: curl -fsSL "$RENDER_DEPLOY_HOOK"
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
