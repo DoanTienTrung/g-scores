@@ -240,9 +240,21 @@ Those last three rows are the same code with only the network between the app an
 
 `seed-naive.ts` is still in the repo so the baseline can be checked.
 
-### Raw SQL would have been faster, and I did not use it
+### Where the ORM is used, and where it is not
 
-I measured a hand-written multi-row `INSERT` at 24,096 rows/second, 2.6x faster than `createMany`. I kept the ORM version: the brief asks for ORM usage, and 110 seconds is already fast enough. Recording the measurement seemed more useful than taking the faster path.
+Prisma handles all the reading and writing: `findUnique` for a lookup, `findMany` for the precomputed statistics, `createMany` for both seeder writes.
+
+Three places drop to raw SQL, each for something the typed API cannot express:
+
+| Where | Statement | Why not the ORM |
+|---|---|---|
+| Leaderboard | `SELECT ... ORDER BY (a + b + c) DESC` | Prisma's `orderBy` takes column names, not computed expressions |
+| Seeder reset | `TRUNCATE` | No model method for it, and `deleteMany` on a million rows is far slower |
+| Health check | `SELECT 1` | The cheapest possible round trip to prove the connection works |
+
+The leaderboard was the real decision. The alternative was a generated `group_a_total` column, which would have hardcoded group A into the schema and cost the property that adding a group is one line. The raw query keeps that, and the column names come from the registry rather than the request — see [Building SQL from column names, safely](#building-sql-from-column-names-safely).
+
+For the seeder I also measured a hand-written multi-row `INSERT` at 24,096 rows/second, 2.6x faster than `createMany`, and did not take it: 110 seconds is already fast enough, and the brief asks for ORM usage. Recording the measurement seemed more useful than taking the faster path.
 
 ---
 
