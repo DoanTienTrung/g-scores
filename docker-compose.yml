@@ -1,5 +1,6 @@
 name: g-scores
-services: 
+
+services:
   postgres:
     image: postgres:16-alpine
     container_name: gscores-postgres
@@ -12,12 +13,43 @@ services:
       - "5433:5432"
     volumes:
       - gscores-pgdata:/var/lib/postgresql/data
-    healthcheck: 
+    healthcheck:
       test: ["CMD-SHELL", "pg_isready -U gscores -d gscores"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  backend:
+    build: ./backend
+    container_name: gscores-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Inside the compose network Postgres answers on its own port, not 5433.
+      DATABASE_URL: postgresql://gscores:gscores@postgres:5432/gscores?schema=public
+      CORS_ORIGIN: http://localhost:8080
+      PORT: 3000
+      DATASET_PATH: /dataset/diem_thi_thpt_2024.csv.gz
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mounted rather than copied: 8.7 MB that only the seeder ever reads.
+      - ./dataset:/dataset:ro
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Read by the browser, so it must be a host address.
+        VITE_API_URL: http://localhost:3000/api
+    container_name: gscores-web
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
 volumes:
   gscores-pgdata:
-

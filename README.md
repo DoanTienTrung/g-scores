@@ -66,32 +66,43 @@ Ranks 7 to 9 all scored 29.20 and rank 10 scored 29.15, which is exactly the tie
 
 ## Running it locally
 
-You need Node 20+ and Docker.
+Everything comes up with one command. You only need Docker.
 
 ```bash
 git clone https://github.com/DoanTienTrung/g-scores
 cd g-scores
 
-# 1. Start PostgreSQL (host port 5433, so it will not clash with a local install)
-docker compose up -d
+docker compose up -d --build
+docker compose run --rm backend node dist/seed/seed.js   # ~3 min, 1,061,605 rows
+```
 
-# 2. Backend
+Then open **http://localhost:8080**. The API is on `http://localhost:3000/api`, Swagger on `/api/docs`.
+
+Migrations run automatically when the API container starts. The CSV is mounted read-only rather than copied into the image, so the seeder reads it without bloating every layer.
+
+<details>
+<summary>Running without Docker</summary>
+
+Needs Node 20+ and a PostgreSQL you can reach.
+
+```bash
+docker compose up -d postgres     # or point DATABASE_URL at your own
+
 cd backend
 npm install
 cp .env.example .env
 npx prisma generate
 npx prisma migrate deploy
-npm run seed          # imports 1,061,605 rows, takes about 2 minutes
-npm run start:dev     # http://localhost:3000/api
+npm run seed                      # ~2 min
+npm run start:dev                 # http://localhost:3000/api
 
-# 3. Frontend, in a second terminal
-cd frontend
+cd ../frontend                    # second terminal
 npm install
 cp .env.example .env
-npm run dev           # http://localhost:5173
+npm run dev                       # http://localhost:5173
 ```
 
-The dataset ships with the repo as `dataset/diem_thi_thpt_2024.csv.gz` (8.7 MB), so there is nothing to download.
+</details>
 
 Tests: `npm test` in either folder, plus `npm run test:e2e` in `backend` (45 unit, 7 e2e, 13 frontend). The e2e tests replace Prisma with a stub, so they need no database and run on CI.
 
@@ -218,13 +229,14 @@ I wrote the naive version first — read the file into memory, one `INSERT` per 
 |---|---|---|---|
 | Naive (`create` per row) | 316 | **56 min** (extrapolated) | 169 MB |
 | Streaming + batched `createMany` | **9,589** | **110 s** | |
+| Same code, container to container | 5,966 | 178 s | |
 | Same code, writing to Render | 1,707 | 622 s | |
 
 **30x faster.** Two independent problems had to be fixed: too many round trips (batching) and holding the file in memory (streaming). Fixing only one would not have helped much.
 
 Batch size is **2,000**, picked by measuring eight values from 250 to 20,000. It is not "bigger is better" — throughput peaks around 2,000 and drops by half at 20,000, because Postgres has to parse an enormous statement and bind tens of thousands of parameters.
 
-The gap between 9,589 and 1,707 rows/second is the same code over a network link to Singapore. That is round-trip latency, not database speed — which is the whole reason batching matters.
+Those last three rows are the same code with only the network between the app and the database changing: loopback, a Docker bridge, then a link to Singapore. That is round-trip latency, not database speed — which is the whole reason batching matters.
 
 `seed-naive.ts` is still in the repo so the baseline can be checked.
 
@@ -238,4 +250,3 @@ I measured a hand-written multi-row `INSERT` at 24,096 rows/second, 2.6x faster 
 
 - The report panels re-fetch on every visit; a small cache would help.
 - Group A is the only group implemented, since it is the only one asked for. The registry is ready for more.
-- Docker Compose only brings up Postgres, not the whole stack.
