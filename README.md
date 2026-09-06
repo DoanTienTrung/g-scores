@@ -10,7 +10,16 @@ Built for the Golden Owl fullstack intern assignment.
 | **API** | https://g-scores-bn4j.onrender.com/api |
 | **API docs (Swagger)** | https://g-scores-bn4j.onrender.com/api/docs |
 
-> ⏱️ **First request takes ~50 seconds.** The API runs on Render's free tier, which puts the service to sleep after 15 minutes of inactivity. It is not broken, just waking up. Everything after that is fast.
+> The API runs on Render's free tier, which sleeps after 15 minutes of inactivity.
+> An UptimeRobot health check every 5 minutes keeps it awake, so the demo should
+> respond immediately. A cold start, if one does happen, takes about 23 seconds.
+> Warm responses are around 0.4 s, including the database queries.
+
+**A few things worth a look**
+
+- The seeder went from an extrapolated 56 minutes to 110 seconds — [how](#seeder-performance)
+- I expected `Float` to break the leaderboard, measured it, and was wrong — [why I still avoided it](#decimal42-not-float)
+- Rank 10 is contested by 8 candidates on the same score — [how the tie is broken](#assumptions)
 
 ---
 
@@ -84,14 +93,7 @@ npm run dev           # http://localhost:5173
 
 The dataset ships with the repo as `dataset/diem_thi_thpt_2024.csv.gz` (8.7 MB), so there is nothing to download.
 
-### Tests
-
-```bash
-cd backend && npm test && npm run test:e2e   # 45 unit, 7 e2e
-cd frontend && npm test                      # 13
-```
-
-E2E tests replace Prisma with a stub, so they need no database and run on CI.
+Tests: `npm test` in either folder, plus `npm run test:e2e` in `backend` (45 unit, 7 e2e, 13 frontend). The e2e tests replace Prisma with a stub, so they need no database and run on CI.
 
 ---
 
@@ -116,29 +118,6 @@ Every error uses the same shape, so the frontend never has to branch on it:
 ```
 
 Full schemas and a "try it" button are at [`/api/docs`](https://g-scores-bn4j.onrender.com/api/docs).
-
----
-
-## Project structure
-
-```
-├── backend/
-│   ├── prisma/            schema + migrations
-│   └── src/
-│       ├── subjects/      domain layer: Subject, ScoreLevel, registry
-│       ├── seed/          CSV importer
-│       ├── students/      score lookup
-│       ├── reports/       distribution + leaderboard
-│       ├── prisma/        PrismaService
-│       └── common/        global exception filter
-├── frontend/src/
-│   ├── api/               fetch wrapper + types
-│   ├── hooks/             useScoreSearch, useApiResource
-│   ├── components/        layout, chart, table
-│   └── pages/
-├── dataset/               gzipped source CSV
-└── scripts/               one-off dataset analysis
-```
 
 ---
 
