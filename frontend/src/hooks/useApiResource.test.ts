@@ -16,7 +16,7 @@ describe('useApiResource', () => {
     expect(result.current.status).toBe('loading');
     await waitFor(() => expect(result.current.status).toBe('success'));
     expect(result.current.data).toEqual({ ok: true });
-    expect(apiGet).toHaveBeenCalledWith('/x');
+    expect(apiGet).toHaveBeenCalledWith('/x', expect.any(AbortSignal));
   });
 
   it('surfaces the backend message on failure', async () => {

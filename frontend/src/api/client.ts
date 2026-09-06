@@ -15,12 +15,17 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiGet<T>(path: string): Promise<T> {
+export async function apiGet<T>(
+  path: string,
+  signal?: AbortSignal,
+): Promise<T> {
   let response: Response;
 
   try {
-    response = await fetch(`${BASE_URL}${path}`);
-  } catch {
+    response = await fetch(`${BASE_URL}${path}`, { signal });
+  } catch (caught) {
+    // Aborts are not failures; let the caller ignore them.
+    if (caught instanceof DOMException && caught.name === 'AbortError') throw caught;
     // fetch only rejects on network failure, never on a 4xx/5xx status.
     throw new ApiError(0, 'Không kết nối được tới máy chủ. Vui lòng thử lại.');
   }
