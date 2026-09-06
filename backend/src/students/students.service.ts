@@ -3,6 +3,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ALL_SUBJECTS } from '../subjects/subject.registry';
 import { StudentScoresDto } from './dto/student-scores.dto';
 
+/** Columns are read by name from the registry, and Prisma returns Decimal. */
+function readScore(row: Record<string, unknown>, code: string): number | null {
+  const value = row[code];
+  return value == null ? null : Number(value);
+}
+
 @Injectable()
 export class StudentsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -14,7 +20,7 @@ export class StudentsService {
       throw new NotFoundException(`Không tìm thấy số báo danh ${sbd}`);
     }
 
-    const row = result as unknown as Record<string, unknown>;
+    const row = result as Record<string, unknown>;
 
     return {
       sbd: result.sbd,
@@ -23,8 +29,7 @@ export class StudentsService {
       scores: ALL_SUBJECTS.map((subject) => ({
         code: subject.code,
         displayName: subject.displayName,
-        // Prisma returns Decimal; the API contract is a plain JSON number.
-        score: row[subject.code] == null ? null : Number(row[subject.code]),
+        score: readScore(row, subject.code),
       })),
     };
   }

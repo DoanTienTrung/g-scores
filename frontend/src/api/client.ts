@@ -4,8 +4,7 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 
 /** Carries the backend's status code so callers can tell 404 from 500. */
 export class ApiError extends Error {
-  // Written out longhand: this tsconfig sets erasableSyntaxOnly, which bans
-  // constructor parameter properties because they emit real assignments.
+  // Longhand because erasableSyntaxOnly bans constructor parameter properties.
   statusCode: number;
 
   constructor(statusCode: number, message: string) {

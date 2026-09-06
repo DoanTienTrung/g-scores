@@ -18,10 +18,26 @@ export interface ErrorBody {
   timestamp: string;
 }
 
-/**
- * Gives every error one shape, and keeps internals off the wire.
- * `@Catch()` with no argument means: catch everything.
- */
+const FALLBACK_MESSAGE = 'Đã có lỗi xảy ra, vui lòng thử lại sau';
+
+/** Nest puts validation messages in an array and everything else in a string. */
+function describe(exception: HttpException): Pick<ErrorBody, 'message' | 'details'> {
+  const body = exception.getResponse();
+  const raw =
+    typeof body === 'string'
+      ? body
+      : (body as { message?: string | string[] }).message;
+
+  if (Array.isArray(raw)) {
+    return raw.length > 1
+      ? { message: raw[0], details: raw }
+      : { message: raw[0] };
+  }
+
+  return { message: typeof raw === 'string' ? raw : FALLBACK_MESSAGE };
+}
+
+/** Gives every error one shape, and keeps internals off the wire. */
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
@@ -31,42 +47,25 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    const isHttp = exception instanceof HttpException;
-    const statusCode = isHttp
-      ? exception.getStatus()
-      : HttpStatus.INTERNAL_SERVER_ERROR;
-
-    let message = 'Đã có lỗi xảy ra, vui lòng thử lại sau';
-    let details: string[] | undefined;
-
-    if (isHttp) {
-      const body = exception.getResponse();
-      const raw =
-        typeof body === 'string'
-          ? body
-          : (body as { message?: string | string[] }).message;
-
-      if (Array.isArray(raw)) {
-        message = raw[0];
-        if (raw.length > 1) details = raw;
-      } else if (typeof raw === 'string') {
-        message = raw;
-      }
-    } else {
-      // Unexpected: log the real error, tell the client nothing about it.
+    if (!(exception instanceof HttpException)) {
+      // Log the real error, tell the client nothing about it.
       this.logger.error(
         exception instanceof Error ? exception.stack : String(exception),
       );
+      response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: FALLBACK_MESSAGE,
+        path: request.url,
+        timestamp: new Date().toISOString(),
+      } satisfies ErrorBody);
+      return;
     }
 
-    const errorBody: ErrorBody = {
-      statusCode,
-      message,
-      ...(details ? { details } : {}),
+    response.status(exception.getStatus()).json({
+      statusCode: exception.getStatus(),
+      ...describe(exception),
       path: request.url,
       timestamp: new Date().toISOString(),
-    };
-
-    response.status(statusCode).json(errorBody);
+    } satisfies ErrorBody);
   }
 }

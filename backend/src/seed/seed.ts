@@ -5,14 +5,10 @@ import { createGunzip } from 'node:zlib';
 import { PrismaPg } from '@prisma/adapter-pg';
 import type { Prisma } from '../generated/prisma/client';
 import { PrismaClient } from '../generated/prisma/client';
-import type { ScoreInput } from '../subjects/subject';
 import { ScoreDistribution } from '../subjects/score-distribution';
 import { parseRow } from './parse-row';
 
-/**
- * Rows per INSERT. Large enough that the round trip cost is amortised,
- * small enough that a single statement stays well under Postgres' limits.
- */
+/** Measured fastest: larger batches slow down as Postgres parses the statement. */
 const BATCH_SIZE = 2_000;
 
 const prisma = new PrismaClient({
@@ -22,15 +18,36 @@ const prisma = new PrismaClient({
 const FILE = process.env.DATASET_PATH as string;
 const LIMIT = process.argv[2] ? Number(process.argv[2]) : Infinity;
 
+/** Sampled rather than read once at the end, which would miss the peak. */
+function trackPeakMemory() {
+  let peakMb = 0;
+  const timer = setInterval(() => {
+    peakMb = Math.max(peakMb, process.memoryUsage().rss / 1024 / 1024);
+  }, 200);
+
+  return {
+    stop: () => {
+      clearInterval(timer);
+      return peakMb;
+    },
+  };
+}
+
+function printSummary(
+  rows: number,
+  statistics: number,
+  seconds: number,
+  peakMb: number,
+) {
+  console.log(`\n  done in ${seconds.toFixed(2)}s`);
+  console.log(`  ${Math.round(rows / seconds).toLocaleString('en-US')} rows/second`);
+  console.log(`  statistics ${statistics} rows`);
+  console.log(`  peak memory ${peakMb.toFixed(0)} MB`);
+}
+
 async function main() {
   const startedAt = Date.now();
-
-  // Sample real process memory so the README number is the peak, not a
-  // single reading taken after the work is already done.
-  let peakRssMb = 0;
-  const sampler = setInterval(() => {
-    peakRssMb = Math.max(peakRssMb, process.memoryUsage().rss / 1024 / 1024);
-  }, 200);
+  const memory = trackPeakMemory();
 
   // Makes the seeder safe to run again: TRUNCATE is instant, unlike DELETE.
   await prisma.$executeRawUnsafe('TRUNCATE TABLE exam_results, subject_statistics');
@@ -41,13 +58,15 @@ async function main() {
   });
 
   const distribution = new ScoreDistribution();
-  let batch: Prisma.ExamResultCreateManyInput[] = [];
+  let batch: Record<string, string | null>[] = [];
   let total = 0;
   let headerSeen = false;
 
   const flush = async () => {
     if (batch.length === 0) return;
-    await prisma.examResult.createMany({ data: batch });
+    await prisma.examResult.createMany({
+      data: batch as Prisma.ExamResultCreateManyInput[],
+    });
     total += batch.length;
     batch = [];
     process.stdout.write(`\r  inserted ${total.toLocaleString('en-US')} rows`);
@@ -62,22 +81,16 @@ async function main() {
     if (total + batch.length >= LIMIT) break;
 
     const row = parseRow(line.split(','));
-    distribution.add(row as Record<string, ScoreInput>);
+    distribution.add(row);
     batch.push(row);
     if (batch.length >= BATCH_SIZE) await flush();
   }
   await flush();
 
-  // 36 rows computed during the same single pass over the file.
   const statistics = distribution.toRows();
   await prisma.subjectStatistic.createMany({ data: statistics });
 
-  clearInterval(sampler);
-  const seconds = (Date.now() - startedAt) / 1000;
-  console.log(`\n  done in ${seconds.toFixed(2)}s`);
-  console.log(`  ${Math.round(total / seconds).toLocaleString('en-US')} rows/second`);
-  console.log(`  statistics ${statistics.length} rows`);
-  console.log(`  peak memory ${peakRssMb.toFixed(0)} MB`);
+  printSummary(total, statistics.length, (Date.now() - startedAt) / 1000, memory.stop());
 }
 
 main()

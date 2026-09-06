@@ -1,9 +1,4 @@
-import {
-  ALL_SUBJECTS,
-  SUBJECT_GROUPS,
-  findGroup,
-  findSubject,
-} from './subject.registry';
+import { ALL_SUBJECTS, SUBJECT_GROUPS, findGroup } from './subject.registry';
 
 describe('subject registry', () => {
   it('holds the nine exam subjects in CSV column order', () => {
@@ -16,14 +11,6 @@ describe('subject registry', () => {
   it('keeps codes and columns unique', () => {
     expect(new Set(ALL_SUBJECTS.map((s) => s.code)).size).toBe(9);
     expect(new Set(ALL_SUBJECTS.map((s) => s.column)).size).toBe(9);
-  });
-
-  it('finds a subject by code', () => {
-    expect(findSubject('vatLi')?.displayName).toBe('Vật lí');
-  });
-
-  it('returns undefined for an unknown code', () => {
-    expect(findSubject('tinHoc')).toBeUndefined();
   });
 });
 

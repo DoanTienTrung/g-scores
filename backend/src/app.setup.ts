@@ -2,15 +2,11 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
 
-/**
- * Everything that turns a bare Nest app into this application.
- * main.ts and the e2e tests both call it, so the tests exercise the same
- * pipeline that production runs.
- */
+/** Called by main.ts and by the e2e tests, so both exercise the same pipeline. */
 export function configureApp(app: INestApplication): void {
   app.useGlobalFilters(new AllExceptionsFilter());
-  // whitelist strips anything not declared on the DTO;
-  // transform turns raw params into the DTO class so decorators run.
+  // Without transform the params never become the DTO class and the
+  // validation decorators silently never run.
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.setGlobalPrefix('api');
 }

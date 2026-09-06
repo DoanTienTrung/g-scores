@@ -1,23 +1,18 @@
 import { ScoreLevel } from './score-level';
 
-/** A raw score as it arrives from the CSV, from Prisma, or from a query. */
+/** Scores arrive as strings from the CSV and as Decimal from Prisma. */
 export type ScoreInput = number | string | null | undefined;
 
 export class Subject {
   constructor(
-    /** Stable identifier used in APIs and in `subject_statistics.subject`. */
+    /** Used in API responses and in `subject_statistics.subject`. */
     readonly code: string,
-    /** Column name in `exam_results`, also the CSV header. */
+    /** Column in `exam_results`, and also the CSV header. */
     readonly column: string,
-    /** Label shown to users. */
     readonly displayName: string,
   ) {}
 
-  /**
-   * Maps a score to one of the four bands.
-   * Returns null when the candidate did not sit this subject, which is
-   * different from scoring zero — both occur in the dataset.
-   */
+  /** Null means the candidate did not sit the subject, which is not the same as scoring zero. */
   classifyLevel(score: ScoreInput): ScoreLevel | null {
     if (score === null || score === undefined || score === '') return null;
 

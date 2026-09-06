@@ -19,14 +19,7 @@ export const SUBJECTS = {
 
 export const ALL_SUBJECTS: readonly Subject[] = Object.values(SUBJECTS);
 
-export function findSubject(code: string): Subject | undefined {
-  return ALL_SUBJECTS.find((subject) => subject.code === code);
-}
-
-/**
- * Exam groups. Adding group B would be a single entry here, with no other
- * code change: the query builder reads its columns from the group object.
- */
+/** Adding a group is one entry here: the query builder reads its columns. */
 export const SUBJECT_GROUPS = {
   A: new SubjectGroup('A', 'Khối A', [
     SUBJECTS.toan,
@@ -38,9 +31,8 @@ export const SUBJECT_GROUPS = {
 export const ALL_GROUPS: readonly SubjectGroup[] = Object.values(SUBJECT_GROUPS);
 
 /**
- * Resolves a user-supplied group code against the whitelist above.
- * Anything not in the list returns undefined, so no caller can ever push
- * arbitrary text into a SQL statement.
+ * Resolves a user-supplied code against the whitelist above, so no caller can
+ * ever push arbitrary text into a SQL statement.
  */
 export function findGroup(code: string): SubjectGroup | undefined {
   const normalised = code.trim().toUpperCase();

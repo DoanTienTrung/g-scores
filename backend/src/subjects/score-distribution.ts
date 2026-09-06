@@ -9,15 +9,11 @@ export interface DistributionRow {
 }
 
 /**
- * Counts scores into the four bands, one counter per (subject, level).
- *
- * The whole distribution is at most 9 subjects x 4 levels = 36 numbers, so it
- * stays in memory while the seeder streams a million rows past it, and is
- * written once at the end. Reports then read 36 rows instead of scanning the
- * full table on every request.
+ * At most 9 subjects x 4 levels = 36 counters, so the whole distribution fits
+ * in memory while the seeder streams a million rows past it.
  */
 export class ScoreDistribution {
-  private readonly counts = new Map<string, number>();
+  private readonly counts = new Map<string, DistributionRow>();
 
   add(row: Record<string, ScoreInput>): void {
     for (const subject of ALL_SUBJECTS) {
@@ -25,14 +21,14 @@ export class ScoreDistribution {
       if (level === null) continue;
 
       const key = `${subject.code}:${level}`;
-      this.counts.set(key, (this.counts.get(key) ?? 0) + 1);
+      const counted = this.counts.get(key);
+
+      if (counted) counted.total++;
+      else this.counts.set(key, { subject: subject.code, level, total: 1 });
     }
   }
 
   toRows(): DistributionRow[] {
-    return [...this.counts.entries()].map(([key, total]) => {
-      const [subject, level] = key.split(':');
-      return { subject, level: Number(level) as ScoreLevel, total };
-    });
+    return [...this.counts.values()];
   }
 }

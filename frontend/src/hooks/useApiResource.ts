@@ -16,10 +16,8 @@ const INITIAL: ResourceState<never> = {
 };
 
 /**
- * Loads one GET endpoint on mount and exposes a retry.
- *
- * The request is aborted on cleanup, so a slow response can never overwrite
- * a newer one, and no state is set synchronously inside the effect.
+ * The request is aborted on cleanup, so a slow response can never overwrite a
+ * newer one, and no state is set synchronously inside the effect.
  */
 export function useApiResource<T>(path: string) {
   const [state, setState] = useState<ResourceState<T>>(INITIAL);
